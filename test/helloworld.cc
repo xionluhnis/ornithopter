@@ -29,12 +29,27 @@ inline void USART_send(const char* str){
     }
 }
 
+void toggle_led(){
+  static char state = 0;
+  if(state)
+    PORTD |= (1 << PD2);
+  else
+    PORTD &= ~(1 << PD2);
+  state = !state;
+}
+
 int main(void) {
+
+    DDRD |= (1 << PD2);
+    while(1){
+        toggle_led();
+        _delay_ms(1000);
+    }
 
     // set clock divider to /1
     // @see https://www.avrprogrammers.com/howto/sysclk-prescaler
-    CLKPR = (1 << CLKPCE);
-    CLKPR = (0 << CLKPS3) | (0 << CLKPS2) | (0 << CLKPS1) | (0 << CLKPS0);
+    // CLKPR = (1 << CLKPCE);
+    // CLKPR = (0 << CLKPS3) | (0 << CLKPS2) | (0 << CLKPS1) | (0 << CLKPS0);
     
     // set baudrate
     UBRR0H = (F_CPU/16/BAUDRATE - 1) >> 8;
@@ -47,7 +62,7 @@ int main(void) {
     // LOOP
     while(1){
         USART_send("Hello world!\r\n");
-        _delay_ms(3000);
+        // _delay_ms(3000);
         
         /*
         USART_send("Who are you?\r\n");
