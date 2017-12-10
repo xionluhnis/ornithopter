@@ -1,5 +1,8 @@
 akaspar
 build
+.*
+*#
+*.swp
 
 # Prerequisites
 *.d

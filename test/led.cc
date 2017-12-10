@@ -6,6 +6,10 @@
 int main(void) {
 
     char state = 0;
+    // set clock divider to /1
+    // @see https://www.avrprogrammers.com/howto/sysclk-prescaler
+    CLKPR = (1 << CLKPCE);
+    CLKPR = (0 << CLKPS3) | (0 << CLKPS2) | (0 << CLKPS1) | (0 << CLKPS0);
 
     DDRD |= (1 << PD2);
     while(1){

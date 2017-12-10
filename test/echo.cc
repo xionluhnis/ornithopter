@@ -53,20 +53,30 @@ int main(void) {
     // enable both receiver and transmitter with frame = [8data, 1 stp]
     UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
     UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
-    
+
+    char rbuffer[128];
+    unsigned char size = 0;
+
     // LOOP
     while(1){
-        toggle_led();
-        USART_send("Hello world!\r\n");
-        _delay_ms(1000);
         
-        /*
-        USART_send("Who are you?\r\n");
-        _delay_ms(5000);
-        if(USART_ready_to_read()){
-            
+        // store input characters
+        char chr = USART_read();
+        rbuffer[size % 128] = chr;
+        size++;
+        if(chr < 32){
+            // echo back
+            toggle_led();
+            USART_send("echo:\r\n");
+            for(unsigned char i = 0; i < size % 128; ++i){
+                chr = rbuffer[i];
+                if(chr == '\n' || chr == '\r')
+                    continue;
+                USART_send(chr);
+            }
+            USART_send("\r\n");
+            size = 0;
         }
-        */
     }
     
     return 0;
