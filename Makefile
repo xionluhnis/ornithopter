@@ -1,9 +1,8 @@
 MMCU=atmega328p
 SMCU=$(MMCU)
 F_CPU = 20000000
-BAUDRATE=9600
+BAUDRATE?=9600
 CC=avr-c++
-
 DEFINE=-DF_CPU=$(F_CPU) -DBAUDRATE=$(BAUDRATE)
 CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -Os -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections
 LFLAGS=
@@ -26,4 +25,7 @@ helloworld: build/helloworld.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
 
 echo: build/echo.hex fuses
+	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
+
+servo: build/servo.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<

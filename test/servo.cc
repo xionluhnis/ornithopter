@@ -53,20 +53,47 @@ int main(void) {
     // enable both receiver and transmitter with frame = [8data, 1 stp]
     UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
     UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
-    
+
+    char rbuffer[128];
+    unsigned char size = 0;
+
+    // PWM setup
+    TCCR1A = (1 << COM1A1) | (0 << COM1A0) | (1 << COM1B1) | (0 << COM1B0); // clear OC1A/B on compare match
+    TCCR1B = (0 << CS12) | (1 << CS11) | (0 << CS10) | (1 << WGM13); // prescaler /8, phase and frequency correct PWM, ICR1 TOP
+    ICR1 = 25000; // 20 ms frequency
+    DDRB |= (1 << PB1) | (1 << PB2);
+
     // LOOP
     while(1){
-        toggle_led();
-        USART_send("Hello world!\r\n");
-        _delay_ms(1);
-        
+    
+        OCR1A = 1250;
+        OCR1B = 1250;
+        _delay_ms(1000);
+        OCR1A = 1875;
+        OCR1B = 1875;
+        _delay_ms(1000);
+        OCR1A = 2500;
+        OCR1B = 2500;
+        _delay_ms(1000);
+
         /*
-        USART_send("Who are you?\r\n");
-        _delay_ms(5000);
-        if(USART_ready_to_read()){
-            
-        }
-        */
+        // store input characters
+        char chr = USART_read();
+        rbuffer[size % 128] = chr;
+        size++;
+        if(chr < 32){
+            // echo back
+            toggle_led();
+            USART_send("echo:\r\n");
+            for(unsigned char i = 0; i < size % 128; ++i){
+                chr = rbuffer[i];
+                if(chr == '\n' || chr == '\r')
+                    continue;
+                USART_send(chr);
+            }
+            USART_send("\r\n");
+            size = 0;
+        }*/
     }
     
     return 0;
