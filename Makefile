@@ -29,3 +29,6 @@ echo: build/echo.hex fuses
 
 servo: build/servo.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
+
+servos: build/servos.hex fuses
+	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
