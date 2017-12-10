@@ -32,3 +32,6 @@ servo: build/servo.hex fuses
 
 servos: build/servos.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
+
+accelerometer: build/accelerometer.hex fuses
+	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
