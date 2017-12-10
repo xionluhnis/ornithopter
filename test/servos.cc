@@ -64,10 +64,11 @@ int main(void) {
     DDRB |= (1 << PB1) | (1 << PB2);
 
     // PWM setup on 8-bit counter 0
-    TCCR0A = (1 << COM0A1) | (0 << COM0A0) | (1 << COM0B1) | (0 << COM0B0);
-    TCCR0B = (1 << CS02) | (0 << CS01) | (1 << CS00) | (1 << WGM02) | (1 << WGM00); // prescaler /1024, phase correct PWM, OCRA TOP
+    TCCR0A = (1 << COM0A1) | (0 << COM0A0) | (1 << COM0B1) | (0 << COM0B0) | (1 << WGM00);
+    TCCR0B = (1 << CS02) | (0 << CS01) | (1 << CS00) | (1 << WGM02); // prescaler /1024, phase correct PWM, OCRA TOP
     OCR0A = 195; // 20MHz / 1024 / 2 / 195 = 50.08 Hz
     DDRD |= (1 << PD5) | (1 << PD6);
+    
     // LOOP
     while(1){
     
