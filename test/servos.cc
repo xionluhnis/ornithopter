@@ -63,26 +63,35 @@ int main(void) {
     ICR1 = 25000; // 20 ms frequency
     DDRB |= (1 << PB1) | (1 << PB2);
 
-    // PWM setup on 8-bit counter 0
+    // PWM setup on 8-bit counter 0 (B)
     TCCR0A = (1 << COM0A1) | (0 << COM0A0) | (1 << COM0B1) | (0 << COM0B0) | (1 << WGM00);
     TCCR0B = (1 << CS02) | (0 << CS01) | (1 << CS00) | (1 << WGM02); // prescaler /1024, phase correct PWM, OCRA TOP
     OCR0A = 195; // 20MHz / 1024 / 2 / 195 = 50.08 Hz
     DDRD |= (1 << PD5) | (1 << PD6);
-    
+
+    // PWM setup on 8-bit counter 2 (B)
+    TCCR2A = (1 << COM2B1) | (0 << COM2B0) | (1 << WGM20);
+    TCCR2B = (1 << CS02) | (1 << CS01) | (1 << CS00) | (1 << WGM22); // prescaler /1024, phase correct PWM, OCRA TOP
+    OCR2A = 195; // 20MHz / 1024 / 2 / 195 = 50.08 Hz
+    DDRD |= (1 << PD3);
+
     // LOOP
     while(1){
     
         OCR1A = 1250;
         OCR1B = 1250;
         OCR0B = 10;
+        OCR2B = 10;
         _delay_ms(1000);
         OCR1A = 1875;
         OCR1B = 1875;
         OCR0B = 15;
+        OCR2B = 15;
         _delay_ms(1000);
         OCR1A = 2500;
         OCR1B = 2500;
         OCR0B = 20;
+        OCR2B = 20;
         _delay_ms(1000);
 
         /*
