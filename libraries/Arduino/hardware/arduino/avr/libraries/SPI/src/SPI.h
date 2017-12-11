@@ -3,6 +3,7 @@
  * Copyright (c) 2014 by Paul Stoffregen <paul@pjrc.com> (Transaction API)
  * Copyright (c) 2014 by Matthijs Kooijman <matthijs@stdin.nl> (SPISettings AVR)
  * Copyright (c) 2014 by Andrew J. Kroll <xxxajk@gmail.com> (atomicity fixes)
+ * Copyright (c) 2017 by Alexandre kaspar <akaspar@mit.edu> (integration into ornithopter project)
  * SPI Master library for arduino.
  *
  * This file is free software; you can redistribute it and/or modify
@@ -14,7 +15,27 @@
 #ifndef _SPI_H_INCLUDED
 #define _SPI_H_INCLUDED
 
+#ifdef ORNITHOPTER
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#ifndef _BV
+#define _BV(bitfield) (1 << (bitfield))
+#endif
+
+#ifndef noInterrupts
+#define noInterrupts() cli()
+#endif
+
+#include <stddef.h>
+
+/*
+extern void USART_send(const char* data);
+extern void USART_sendNumber(unsigned char data);
+*/
+
+#else
 #include <Arduino.h>
+#endif
 
 // SPI_HAS_TRANSACTION means SPI has beginTransaction(), endTransaction(),
 // usingInterrupt(), and SPISetting(clock, bitOrder, dataMode)
@@ -206,6 +227,11 @@ public:
 
   // Write to the SPI bus (MOSI pin) and also receive (MISO pin)
   inline static uint8_t transfer(uint8_t data) {
+    /* 
+    USART_send("SPI transfer ");
+    USART_sendNumber(data);
+    USART_send("\r\n");
+    */
     SPDR = data;
     /*
      * The following NOP introduces a small delay that can prevent the wait
@@ -215,7 +241,13 @@ public:
      */
     asm volatile("nop");
     while (!(SPSR & _BV(SPIF))) ; // wait
-    return SPDR;
+    uint8_t res = SPDR;
+    /*
+    USART_send("SPI receive ");
+    USART_sendNumber(res);
+    USART_send("\r\n");
+    */
+    return res;
   }
   inline static uint16_t transfer16(uint16_t data) {
     union { uint16_t val; struct { uint8_t lsb; uint8_t msb; }; } in, out;

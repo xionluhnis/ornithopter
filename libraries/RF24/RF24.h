@@ -420,6 +420,8 @@ s   *
   */
   bool writeFast( const void* buf, uint8_t len, const bool multicast );
 
+#ifndef ORNITHOPTER
+
   /**
    * This function extends the auto-retry mechanism to any specified duration.
    * It will not block until the 3 FIFO buffers are filled with data.
@@ -447,6 +449,7 @@ s   *
    * @return True if the payload was loaded into the buffer successfully false if not
    */
   bool writeBlocking( const void* buf, uint8_t len, uint32_t timeout );
+
 
   /**
    * This function should be called as soon as transmission is finished to
@@ -493,6 +496,8 @@ s   *
    *
    */
    bool txStandBy(uint32_t timeout, bool startTx = 0);
+
+#endif
 
   /**
    * Write an ack payload for the specified pipe

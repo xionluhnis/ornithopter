@@ -61,10 +61,45 @@
   #if defined SPI_HAS_TRANSACTION && !defined SPI_UART && !defined SOFTSPI
     #define RF24_SPI_TRANSACTIONS
   #endif
- 
- 
+
+#if defined(ORNITHOPTER)
+#include "SPI.h"
+
+#define _SPI SPI
+
+#include <util/delay.h>
+#include <avr/pgmspace.h>
+#include <string.h>
+
+#ifndef delay
+#define delay(ms) _delay_ms(ms)
+#endif
+
+#ifndef delayMicroseconds
+#define delayMicroseconds(us) _delay_us(us)
+#endif
+
+#ifndef HIGH
+#define HIGH 1
+#endif
+
+#ifndef LOW
+#define LOW 0
+#endif
+  
+#define RF24_SPI_TRANSACTIONS
+const uint32_t RF24_SPI_SPEED = 10000000;  
+
+#ifdef SERIAL_DEBUG
+#define IF_SERIAL_DEBUG(x) ({x;})
+#else
+#define IF_SERIAL_DEBUG(x)
+#define printf_P(...)
+#endif
+
+
 //ATXMega
-#if defined(__AVR_ATxmega64D3__) || defined(__AVR_ATxmega128D3__) || defined(__AVR_ATxmega192D3__) || defined(__AVR_ATxmega256D3__) || defined(__AVR_ATxmega384D3__) // In order to be available both in windows and linux this should take presence here.
+#elif defined(__AVR_ATxmega64D3__) || defined(__AVR_ATxmega128D3__) || defined(__AVR_ATxmega192D3__) || defined(__AVR_ATxmega256D3__) || defined(__AVR_ATxmega384D3__) // In order to be available both in windows and linux this should take presence here.
   #define XMEGA
   #define XMEGA_D3
   #include "utility/ATXMegaD3/RF24_arch_config.h"
@@ -139,7 +174,7 @@
      #define _SPI SPI
    #endif
  #elif !defined(__arm__) && !defined (__ARDUINO_X86__)
-   extern HardwareSPI SPI;
+      extern HardwareSPI SPI;
  #endif
  
  #define _BV(x) (1<<(x))

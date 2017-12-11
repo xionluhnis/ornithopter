@@ -10,12 +10,32 @@
 #include "RF24_config.h"
 #include "RF24.h"
 
+// debug with USART
+#ifdef ORNITHOPTER_DEBUG
+#define USART_DEBUG(x) { x; }
+extern void USART_send(const char* str);
+extern void USART_sendNumber(unsigned char num);
+#else
+#define USART_DEBUG(x)
+#endif
+
 /****************************************************************************/
 
 void RF24::csn(bool mode)
 {
+#if defined (ORNITHOPTER)
+  _SPI.setBitOrder(MSBFIRST);
+  _SPI.setDataMode(SPI_MODE0);
+  _SPI.setClockDivider(SPI_CLOCK_DIV2);
+  if(mode){
+    PORTC |= _BV(csn_pin);
+    delayMicroseconds(100);
+  } else {
+    PORTC &= ~_BV(csn_pin);
+    delayMicroseconds(11); 
+  }
 
-#if defined (RF24_TINY)
+#elif defined (RF24_TINY)
 	if (ce_pin != csn_pin) {
 		digitalWrite(csn_pin,mode);
 	} 
@@ -48,7 +68,15 @@ void RF24::csn(bool mode)
 	    _SPI.chipSelect(csn_pin);
 #endif
 
-#if !defined (RF24_LINUX)
+#if defined(ORNITHOPTER)
+  if(mode)
+    PORTC |= _BV(csn_pin);
+  else
+    PORTC &= ~_BV(csn_pin);
+  for(unsigned char i = 0; i < csDelay; ++i)
+    _delay_us(1);
+
+#elif !defined (RF24_LINUX)
 	digitalWrite(csn_pin,mode);
 	delayMicroseconds(csDelay);
 #endif
@@ -59,22 +87,27 @@ void RF24::csn(bool mode)
 
 void RF24::ce(bool level)
 {
+  // USART_send("CE="); USART_send(level ? "1" : "0"); USART_send("\r\n");
+#ifdef ORNITHOPTER
+  if(level)
+    PORTC |= _BV(ce_pin);
+  else
+    PORTC &= ~_BV(ce_pin);
+#else
   //Allow for 3-pin use on ATTiny
   if (ce_pin != csn_pin) digitalWrite(ce_pin,level);
+#endif
 }
 
 /****************************************************************************/
 
-#if !defined(RF24_SPI_TRANSACTIONS)
-#define beginTransaction() csn(LOW)
-#else
   inline void RF24::beginTransaction() {
     #if defined (RF24_SPI_TRANSACTIONS)
+    
     _SPI.beginTransaction(SPISettings(RF24_SPI_SPEED, MSBFIRST, SPI_MODE0));
 	#endif
     csn(LOW);
   }
-#endif
 
 /****************************************************************************/
 
@@ -575,7 +608,7 @@ void RF24::printDetails(void)
 
 bool RF24::begin(void)
 {
-
+  USART_DEBUG(USART_send("RF24::begin()\r\n"));
   uint8_t setup=0;
 
   #if defined (RF24_LINUX)
@@ -614,6 +647,10 @@ bool RF24::begin(void)
 	csn(HIGH);
 	delay(200);
   #else
+
+#ifdef ORNITHOPTER
+    DDRC |= _BV(ce_pin) | _BV(csn_pin);
+#else
     // Initialize pins
     if (ce_pin != csn_pin) pinMode(ce_pin,OUTPUT);  
   
@@ -621,11 +658,15 @@ bool RF24::begin(void)
       if (ce_pin != csn_pin)
     #endif
         pinMode(csn_pin,OUTPUT);
-    
+#endif
+
     _SPI.begin();
     ce(LOW);
   	csn(HIGH);
-  	#if defined (__ARDUINO_X86__)
+    
+    #ifdef ORNITHOPTER
+    _delay_ms(100);
+    #elif defined (__ARDUINO_X86__)
 		delay(100);
   	#endif
   #endif //Linux
@@ -636,8 +677,13 @@ bool RF24::begin(void)
   // Enabling 16b CRC is by far the most obvious case if the wrong timing is used - or skipped.
   // Technically we require 4.5ms + 14us as a worst case. We'll just call it 5ms for good measure.
   // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
+#ifdef ORNITHOPTER
+  _delay_ms(5);
+#else
   delay( 5 ) ;
+#endif
 
+  USART_DEBUG(USART_send("NRF_CONFIG to 0x0C\r\n"));
   // Reset NRF_CONFIG and enable 16-bit CRC.
   write_register( NRF_CONFIG, 0x0C ) ;
 
@@ -645,6 +691,8 @@ bool RF24::begin(void)
   // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
   // sizes must never be used. See documentation for a more complete explanation.
   setRetries(5,15);
+
+  USART_DEBUG(USART_send("Read RF_SETUP\r\n"));
 
   // Reset value is MAX
   //setPALevel( RF24_PA_MAX ) ;
@@ -655,7 +703,11 @@ bool RF24::begin(void)
   //{
   //  p_variant = true ;
   //}
-  setup = read_register(RF_SETUP);
+
+  while(setup == 0x00 || setup == 0xFF){
+    setup = read_register(RF_SETUP);
+    USART_DEBUG(USART_send("Setup="); USART_sendNumber(setup); USART_send("\r\n"));
+  }
   /*if( setup == 0b00001110 )     // register default for nRF24L01P
   {
     p_variant = true ;
@@ -668,26 +720,40 @@ bool RF24::begin(void)
   // Initialize CRC and request 2-byte (16bit) CRC
   //setCRCLength( RF24_CRC_16 ) ;
 
+  USART_DEBUG(USART_send("Toggle features\r\n"));
+
   // Disable dynamic payloads, to match dynamic_payloads_enabled setting - Reset value is 0
   toggle_features();
   write_register(FEATURE,0 );
   write_register(DYNPD,0);
   dynamic_payloads_enabled = false;
 
+  USART_DEBUG(USART_send("Reset current status\r\n"));
+
   // Reset current status
   // Notice reset and flush is the last thing we do
   write_register(NRF_STATUS,_BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) );
 
+#ifndef RADIO_CHANNEL
+#define RADIO_CHANNEL 76
+#endif
+
   // Set up default configuration.  Callers can always change it later.
   // This channel should be universally safe and not bleed over into adjacent
   // spectrum.
-  setChannel(76);
+  setChannel(RADIO_CHANNEL);
+
+  USART_DEBUG(USART_send("Flush buffers\r\n"));
 
   // Flush buffers
   flush_rx();
   flush_tx();
 
+  USART_DEBUG(USART_send("Power up\r\n"));
+
   powerUp(); //Power up by default when begin() is called
+
+  USART_DEBUG(USART_send("Enable PTX\r\n"));
 
   // Enable PTX, do not write CE high so radio will remain in standby I mode ( 130us max to transition to RX or TX instead of 1500us from powerUp )
   // PTX should use only 22uA of power
@@ -747,12 +813,22 @@ void RF24::stopListening(void)
 {  
   ce(LOW);
 
+#ifdef ORNITHOPTER
+  for(uint32_t i = 0; i < txDelay; ++i)
+      _delay_us(1);
+  if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
+    for(uint32_t i = 0; i < txDelay; ++i)
+      _delay_us(1);
+    flush_tx();
+  }
+#else
   delayMicroseconds(txDelay);
   
   if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
     delayMicroseconds(txDelay); //200
 	flush_tx();
   }
+#endif
   //flush_rx();
   write_register(NRF_CONFIG, ( read_register(NRF_CONFIG) ) & ~_BV(PRIM_RX) );
  
@@ -852,6 +928,8 @@ bool RF24::write( const void* buf, uint8_t len ){
 }
 /****************************************************************************/
 
+#ifndef ORNITHOPTER
+
 //For general use, the interrupt flags are not important to clear
 bool RF24::writeBlocking( const void* buf, uint8_t len, uint32_t timeout )
 {
@@ -884,6 +962,8 @@ bool RF24::writeBlocking( const void* buf, uint8_t len, uint32_t timeout )
 
 	return 1;												  //Return 1 to indicate successful transmission
 }
+
+#endif
 
 /****************************************************************************/
 
@@ -977,6 +1057,8 @@ bool RF24::rxFifoFull(){
 }
 /****************************************************************************/
 
+#ifndef ORNITHOPTER
+
 bool RF24::txStandBy(){
 
     #if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
@@ -1037,6 +1119,8 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx){
 	return 1;
 
 }
+
+#endif
 
 /****************************************************************************/
 
@@ -1463,6 +1547,9 @@ bool RF24::setDataRate(rf24_datarate_e speed)
     setup |= _BV( RF_DR_LOW ) ;
   #if defined(__arm__) || defined (RF24_LINUX) || defined (__ARDUINO_X86__)
     txDelay=450;
+#elif defined(ORNITHOPTER)
+  txDelay=155; // 195; // 20MHz
+
   #else //16Mhz Arduino
 	txDelay=155;
   #endif
@@ -1476,6 +1563,8 @@ bool RF24::setDataRate(rf24_datarate_e speed)
       setup |= _BV(RF_DR_HIGH);
       #if defined(__arm__) || defined (RF24_LINUX) || defined (__ARDUINO_X86__)
       txDelay=190;
+#elif defined(ORNITHOPTER)
+      txDelay=65; // 80; // 20MHz
       #else //16Mhz Arduino	  
 	  txDelay=65;
 	  #endif
