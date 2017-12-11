@@ -230,17 +230,25 @@ int main(void) {
             USART_send("Issue selecting X0 register\r\n"); // select register
         I2C_receive(addr, data, 6); // read 6 bytes from register 0x32
 
+#ifndef BINARY_MODE
+#define BINARY_MODE 1
+#endif
+
+#if BINARY_MODE == 1
         // send frame
-        /*
-        USART_sendNumber(1); USART_send("\r\n");
-        USART_sendNumber(2); USART_send("\r\n");
-        USART_sendNumber(3); USART_send("\r\n");
-        USART_sendNumber(4); USART_send("\r\n");
-        */
+        USART_send(1);
+        USART_send(2);
+        USART_send(3);
+        USART_send(4);
+        // send acceleration data
+        for(unsigned char i = 0; i < 6; ++i)
+            USART_send(data[i]);
+#else
         // send acceleration data
         for(unsigned char i = 0; i < 6; ++i)
             USART_sendNumber(data[i]);
         USART_send("\r\n");
+#endif
     }
     
     return 0;
