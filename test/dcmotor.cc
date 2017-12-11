@@ -23,8 +23,8 @@ int main(void) {
     
     // PWM setup on 8-bit counter 2 (B)
     TCCR2A = (1 << COM2B1) | (0 << COM2B0) | (1 << WGM20);
-    TCCR2B = (0 << CS22) | (0 << CS21) | (1 << CS20) | (1 << WGM22); // prescaler /1, phase correct PWM, OCRA TOP
-    OCR2A = 200; // 20MHz / 200 / 2 = 50 kHz
+    TCCR2B = (1 << CS22) | (1 << CS21) | (1 << CS20) | (1 << WGM22); // prescaler /1024, phase correct PWM, OCRA TOP
+    OCR2A = 200; // 20MHz / 1024 / 200 / 2 = 50 kHz
     DDRD |= (1 << PD3);
 
     // LOOP
