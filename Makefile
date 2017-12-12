@@ -8,9 +8,12 @@ INCLUDE=-I./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/ -I./librar
 CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -Os -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections
 LFLAGS=
 LFUSES=0x5E
+RADIO_CE?=PC0
+RADIO_CSN?=PC1
 
 build/radio.out: test/radio.cc
-	$(CC) $(CFLAGS) $(DEFINE) -I./ $(INCLUDE) -o $@ $< ./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/SPI.cpp ./libraries/RF24/RF24.cpp $(LFLAGS)
+	@echo "Using pins RADIO_CE =" $(RADIO_CE) " and RADIO_CSN =" $(RADIO_CSN)
+	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ $(INCLUDE) -o $@ $< ./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/SPI.cpp ./libraries/RF24/RF24.cpp $(LFLAGS)
 
 build/%.out: test/%.cc
 	$(CC) $(CFLAGS) $(DEFINE) -I./ -o $@ $< $(LFLAGS)

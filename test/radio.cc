@@ -10,6 +10,13 @@
 #define BAUDRATE 9600
 #endif
 
+#ifndef RADIO_CE
+#define RADIO_CE PC0
+#endif
+#ifndef RADIO_CSN
+#define RADIO_CSN PC1
+#endif
+
 inline bool USART_ready_to_send(){
     return UCSR0A & (1 << UDRE0);
 }
@@ -80,7 +87,7 @@ void toggle_led(){
 #define RADIO_NUM 1
 
 const unsigned char addresses[][6] = {"1Node","2Node"};
-RF24 radio(PC1, PC2);
+RF24 radio(RADIO_CE, RADIO_CSN);
 
 int main(void) {
 

@@ -216,7 +216,8 @@ int main(void) {
     data[1] = 8; // turn on measure bit
     if(!I2C_transmit(addr, data, 2))
         USART_send("Issue with power control\r\n"); // write 8 into register 0x2D
-
+    else
+        USART_send("Power up transmitted\r\n");
     // wait for wake up
     _delay_ms(10);
 
