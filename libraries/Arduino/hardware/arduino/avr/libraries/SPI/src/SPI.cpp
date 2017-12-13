@@ -3,6 +3,7 @@
  * Copyright (c) 2014 by Paul Stoffregen <paul@pjrc.com> (Transaction API)
  * Copyright (c) 2014 by Matthijs Kooijman <matthijs@stdin.nl> (SPISettings AVR)
  * Copyright (c) 2014 by Andrew J. Kroll <xxxajk@gmail.com> (atomicity fixes)
+ * Copyright (c) 2017 by Alexandre Kaspar <akaspar@mit.edu> (ornithopter integration)
  * SPI Master library for arduino.
  *
  * This file is free software; you can redistribute it and/or modify
@@ -28,6 +29,7 @@ void SPIClass::begin()
   uint8_t sreg = SREG;
   noInterrupts(); // Protect from a scheduler and prevent transactionBegin
   if (!initialized) {
+#ifndef ORNITHOPTER
     // Set SS to high so a connected chip will be "deselected" by default
     uint8_t port = digitalPinToPort(SS);
     uint8_t bit = digitalPinToBitMask(SS);
@@ -58,6 +60,13 @@ void SPIClass::begin()
     // http://code.google.com/p/arduino/issues/detail?id=888
     pinMode(SCK, OUTPUT);
     pinMode(MOSI, OUTPUT);
+#else
+
+    if(!(PORTB & (1 << PB2)))
+        PORTB |= (1 << PB2);
+    DDRB |= _BV(DDB2) | _BV(DDB3) | _BV(DDB5); // SS should be output
+    SPCR |= _BV(MSTR) | _BV(SPE); // enable SPI in master mode
+#endif
   }
   initialized++; // reference count
   SREG = sreg;

@@ -58,7 +58,7 @@ int main(void) {
     while(1){
         toggle_led();
         USART_send("Hello world!\r\n");
-        _delay_ms(1);
+        _delay_ms(1000);
         
         /*
         USART_send("Who are you?\r\n");
