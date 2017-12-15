@@ -4,7 +4,7 @@
 #include <util/delay.h>
 #include <stdint.h>
 #include "RF24.h"
-#include "serial.h"
+#include "usart.h"
 
 #ifndef RADIO_CE
 #define RADIO_CE PC0
@@ -37,7 +37,7 @@ inline unsigned char get_index(CommandType cmd){
   return cmd & 0x03;
 }
 inline CommandType get_type(Command cmd){
-  return cmd >> 8;
+  return static_cast<CommandType>((cmd >> 8) & 0xFF);
 }
 inline uint8_t get_data(Command cmd){
   return cmd & 0xFF;

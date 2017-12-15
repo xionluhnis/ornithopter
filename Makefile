@@ -5,7 +5,7 @@ BAUDRATE?=9600
 CC=avr-c++
 DEFINE=-DF_CPU=$(F_CPU) -DBAUDRATE=$(BAUDRATE) -DORNITHOPTER
 INCLUDE=-I./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/ -I./libraries/RF24/
-CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -Os -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections
+CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -Os -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections -fshort-enums
 LFLAGS=
 LFUSES=0x5E
 RADIO_CE?=PC0
@@ -15,10 +15,10 @@ SPI_CPP=./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/SPI.cpp
 RF24_CPP=./libraries/RF24/RF24.cpp
 
 build/car.out: src/car.cc
-	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) ./$(LFLAGS)
+	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) $(LFLAGS)
 
 build/serial.out: src/serial.cc
-	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) ./$(LFLAGS)
+	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) $(LFLAGS)
 
 build/radio.out: test/radio.cc
 	@echo "Using pins RADIO_CE =" $(RADIO_CE) " and RADIO_CSN =" $(RADIO_CSN)

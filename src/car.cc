@@ -9,6 +9,7 @@
 #include "control.h"
 #include "pwm.h"
 #include "radio.h"
+#include "time.h"
 #include "usart.h"
 
 void toggle_led(){
