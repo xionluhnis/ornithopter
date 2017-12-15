@@ -3,6 +3,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdint.h>
+#include <string.h>
 
 #define RADIO_NUM 0
 
@@ -11,12 +12,12 @@
 #include "time.h"
 #include "usart.h"
 
-unsigned char buffer[256];
+char buffer[256];
 uint8_t length;
 
 Control controller;
 Command cmd = 0;
-Command nextCmd = 0;
+bool interactive = false;
 
 void toggle_led(){
   static char state = 0;
@@ -28,6 +29,7 @@ void toggle_led(){
   state = !state;
 }
 
+void processInput();
 void processCommand();
 
 int main(void) {
@@ -41,102 +43,56 @@ int main(void) {
     // clear
     toggle_led();
 
-    if(cmd)
+    if(cmd){
       radio.stopListening();
-    while(cmd){
-      USART_send("Sending");
+      USART_send("Sending ");
+      USART_sendNumber(cmd, 16);
+      USART_send("\r\n");
+      /*
       if (!radio.write( &cmd, sizeof(Command) ))
         USART_send("... failed!\r\n");
       else
-        USART_send(" ok!\r\n");
-      cmd = nextCmd;
-      nextCmd = 0;
+        USART_send("ok!\r\n");
+      */
+      cmd = 0;
     }
 
     // reading something?
     if(USART_ready_to_read()){
-      unsigned char c = USART_read();
-      // cases
-      switch(c){
-        case 0x00:
-        case 0xE0:
-        case 0x5B: // own linux
-          c = USART_read();
-          switch(c){
-              // down arrow
-            case 0x50:
-            case 0xD0:
-            case 0x42:
-              if(controller.slower())
-                cmd = make_command(SetSpeed, controller.speed);
-              break;
+      if(interactive){
+        processInput();
+      } else {
 
-              // left arrow
-            case 0x4B:
-            case 0xCB:
-            case 0x44:
-              if(controller.left())
-                cmd = make_command(SetDirection, controller.direction);
-              break;
-
-              // right arrow
-            case 0x4D:
-            case 0xCD:
-            case 0x43:
-              if(controller.right())
-                cmd = make_command(SetDirection, controller.direction);
-              break;
-
-              // top arrow
-            case 0x48:
-            case 0xC8:
-            case 0x41:
-              if(controller.faster())
-                cmd = make_command(SetSpeed, controller.speed);
-              break;
-
-            default:
-              USART_send("Unknown control: ");
-              USART_sendNumber(c, 16);
-              USART_send("\r\n");
-              break;
-          }
-          break;
-
-          // escape / delete
-        case 0x1B:
-        case 0x7F:
-          controller.reset();
-          cmd = make_command(Stop, 0xFF);
-          break;
-
-        default:
-          if((c >= '0' && c <= '9') // digits
+        unsigned char c = USART_read();
+        if((c >= '0' && c <= '9') // digits
           || (c >= 'A' && c <= 'Z') // upper case
           || (c >= 'a' && c <= 'z') // lower case
           || c == '\r' || c == '\n' || c == ' '
-          ){
-            if(c == '\r' || c == '\n')
-              
+        ){
+          if(c == '\r' || c == '\n')
+            
+            processCommand();
+          else {
+            if(length < 255){
+              buffer[length] = c;
+              ++length;
+              USART_send(c);
+            } else
               processCommand();
-            else {
-              if(length < 256){
-                buffer[length] = c;
-                ++length;
-                USART_send(c);
-              } else
-                processCommand();
-            }
-          } else {
-            // ???
-            USART_send("Unsupported input: ascii=");
-            USART_send(c);
-            USART_send(", code=");
-            USART_sendNumber(c, 16);
-            USART_send("\r\n");
           }
-          continue;
-      } 
+        } else if(c == 0x7F){ // backspace
+          if(length)
+            --length;
+          USART_send(c);
+        } else {
+          // ???
+          USART_send("Unsupported input: ascii=");
+          USART_send(c);
+          USART_send(", code=");
+          USART_sendNumber(c, 16);
+          USART_send("\r\n");
+        }
+      }
     }
 
     /*
@@ -165,10 +121,11 @@ int main(void) {
       USART_sendNumber(response, 16);
       USART_send("\r\n");
     }
+    */
 
     // Try again 1s later
     _delay_ms(1);
-    */
+    
   }
   
   return 0;
@@ -176,4 +133,73 @@ int main(void) {
 
 void processCommand(){
   USART_send("\r\n");
+  buffer[length] = 0; // null-terminate
+  USART_send("command(");
+  USART_sendNumber(length);
+  USART_send("): ");
+  for(uint8_t i = 0; i < length; ++i)
+    USART_send(buffer[i]);
+  USART_send("\r\n");
+
+  if(strcmp(buffer, "i") == 0 || strcmp(buffer, "interactive") == 0){
+    interactive = true;
+    USART_send("Interactive mode enabled\r\n");
+  } else {
+    USART_send("Not supported\r\n");
+  }
+
+  // clear buffer
+  for(uint8_t i = 0; i < 255; ++i)
+    buffer[i] = 0;
+  length = 0;
+}
+void processInput(){
+  USART_send("processInput()\r\n");
+  unsigned char c = USART_read();
+  USART_sendNumber(c, 16);
+  USART_send("\r\n");
+  switch(c){
+
+    case 'a':
+      if(controller.slower())
+        cmd = make_command(SetSpeed, controller.speed);
+      break;
+
+    case 's':
+      if(controller.left())
+        cmd = make_command(SetDirection, controller.direction);
+      break;
+
+    case 'd':
+      if(controller.faster())
+        cmd = make_command(SetSpeed, controller.speed);
+      break;
+    
+    case 'f':
+      if(controller.right())
+        cmd = make_command(SetDirection, controller.direction);
+      break;
+
+    case ' ':
+      controller.stop();
+      cmd = make_command(Stop, 0xFE);
+      break;
+
+    case 'q':
+      controller.reset();
+      cmd = make_command(Stop, 0xFF);
+      break;
+
+    case 0x0D: // delete, return
+    case 0x7F:
+      interactive = false;
+      USART_send("Interactive mode disabled\r\n");
+      break;
+
+    default:
+      USART_send("Unknown control: ");
+      USART_sendNumber(c, 16);
+      USART_send("\r\n");
+      break; 
+  }
 }

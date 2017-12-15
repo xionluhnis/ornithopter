@@ -80,8 +80,10 @@ int main(void) {
       switch(what){
 
         case Stop:
-          controller.speed = 0;
-          controller.direction = 0;
+          if(data.u == 0xFE)
+            controller.reset();
+          else
+            controller.stop();
           break;
 
         case SetDirection:
@@ -89,7 +91,7 @@ int main(void) {
           break;
 
         case SetSpeed:
-          controller.speed = data.s;
+          controller.speed = data.u;
           break;
       }
     }
