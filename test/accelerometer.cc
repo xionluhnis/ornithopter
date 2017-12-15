@@ -34,7 +34,8 @@ inline void USART_send(const char* str){
         ++str;
     }
 }
-inline void USART_sendNumber(unsigned char num, unsigned char base = 10){
+template <typename Number>
+inline void USART_sendNumber(Number num, unsigned char base = 10){
   static unsigned char numbers[] = "0123456789ABCDEF";
   unsigned char digits[8];
   unsigned char length = 0;
@@ -80,9 +81,34 @@ inline void I2C_init(){
     // I2C_BAUDRATE = F_CPU / (16 + 2 * TWBR * PRESCALER)
     // TWBR = (F_CPU / I2C_BAUDRATE - 16) / 2 / PRESCALER
     // TWSR = 2; // PRESCALER=16
-    TWSR = 0;
-    // unity prescaling
-    TWBR = ((F_CPU / I2C_BAUDRATE ) - 16) / 2 / 1;
+    // select prescaler automatically
+    uint8_t prescaler[] = { 1, 4, 16, 64 };
+    uint8_t twsr[] = { 0, 1, 2, 3};
+    uint8_t i = 0;
+    for(; i < 4; ++i){
+        uint32_t twbr = ((F_CPU / I2C_BAUDRATE ) - 16 ) / 2 / prescaler[i];
+        if(twbr <= 0xFF){
+            // fits with prescaler
+            TWSR = twsr[i];
+            TWBR = twbr;
+            break;
+        }
+    }
+    // Information for debug
+    USART_send("Using I2C baudrate ");
+    USART_sendNumber(I2C_BAUDRATE);
+    USART_send("\r\nUsing prescaler f#");
+    USART_sendNumber(i);
+    USART_send(" = ");
+    USART_sendNumber(prescaler[i]);
+    USART_send("\r\nTWSR = ");
+    USART_sendNumber(TWSR, 2);
+    USART_send(", TWBR = ");
+    USART_sendNumber(TWBR);
+    USART_send("\r\n");
+    if(I2C_BAUDRATE != F_CPU / (16 + 2 * TWBR * prescaler[i])){
+        USART_send("Baudrate doesn't match TWBR/TWSR settings!\r\n");
+    }
 }
 inline void I2C_wait(){
     // USART_send(". wait\r\n");
@@ -116,7 +142,7 @@ inline bool I2C_start(unsigned char addr){
     // return ack status
     status = TWSR & 0xF8;
     unsigned char okStatus = reading ? 0x40 : 0x18;
-    if(status != okStatus){
+    if(status != okStatus && false){
         if(reading)
             USART_send("Start receive failed. ");
         else
@@ -198,6 +224,9 @@ int main(void) {
     UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
     UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);
 
+    // set pull-up on SDA = PC4
+    // PORTC |= _BV(PC5) | _BV(PC4);
+
     _delay_ms(1000);
     USART_send("Starting I2C\r\n");
 
@@ -214,10 +243,12 @@ int main(void) {
     // enable accelerometer
     data[0] = 0x2D; // POWER_CTL register
     data[1] = 8; // turn on measure bit
-    if(!I2C_transmit(addr, data, 2))
-        USART_send("Issue with power control\r\n"); // write 8 into register 0x2D
-    else
-        USART_send("Power up transmitted\r\n");
+    while(!I2C_transmit(addr, data, 2)){
+        // USART_send("Issue with power control\r\n"); // write 8 into register 0x2D
+        // _delay_ms(100);
+    }
+    // now we can do things
+    USART_send("Power up transmitted\r\n");
     // wait for wake up
     _delay_ms(10);
 
@@ -250,6 +281,7 @@ int main(void) {
             USART_sendNumber(data[i]);
         USART_send("\r\n");
 #endif
+        _delay_ms(1000);
     }
     
     return 0;
