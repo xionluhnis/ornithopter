@@ -6,6 +6,10 @@
 #include "RF24.h"
 #include "usart.h"
 
+#ifndef RADIO_NUM
+#pragma error "You must define RADIO_NUM to either 0 (serial) or 1 (target)"
+#endif
+
 #ifndef RADIO_CE
 #define RADIO_CE PC0
 #endif
@@ -69,4 +73,5 @@ void radio_init(bool usart = false){
   
   // Start the radio listening for data
   radio.startListening();
+  USART_send("Listening\r\n");
 }

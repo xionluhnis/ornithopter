@@ -31,13 +31,10 @@ int main(void) {
   radio_init();
   pwm1_init();
 
-  // PWM setup
-  TCCR1A = (1 << COM1A1) | (0 << COM1A0) | (1 << COM1B1) | (0 << COM1B0); // clear OC1A/B on compare match
-  TCCR1B = (0 << CS12) | (1 << CS11) | (0 << CS10) | (1 << WGM13); // prescaler /8, phase and frequency correct PWM, ICR1 TOP
-  // ICR1 = 25000; // 20 ms frequency
+  // variant of PWM (not to 25000)
   ICR1 = 10000;
-  DDRB |= (1 << PB1) | (1 << PB2);
 
+  uint8_t counter = 0;
   // LOOP
   while(1){
 
@@ -46,7 +43,7 @@ int main(void) {
     if(controller.direction == 0){
       left  = 100 * controller.speed;
       right = 100 * controller.speed;
-    } else if(controller < 0){
+    } else if(controller.direction < 0){
       left  = 100 * controller.speed;
       right = (100 + controller.direction) * controller.speed;
     } else {
@@ -70,13 +67,14 @@ int main(void) {
       USART_send("Response timed out.\r\n");
     }else{
       Command response = 0;
-      radio.read( &response, sizeof(Commmand) );
+      radio.read( &response, sizeof(Command) );
 
       CommandType what = get_type(response);
       union {
         uint8_t u;
         int8_t  s;
-      } data = get_data(response);
+      } data;
+      data.u = get_data(response);
       switch(what){
 
         case Stop:
@@ -93,10 +91,17 @@ int main(void) {
         case SetSpeed:
           controller.speed = data.u;
           break;
+
+        default:
+          USART_send("Unsupported command: ");
+          USART_sendNumber(static_cast<uint8_t>(what), 16);
+          USART_send("\r\n");
+          break;
       }
     }
 
     toggle_led();
+    ++counter;
   }
   
   return 0;

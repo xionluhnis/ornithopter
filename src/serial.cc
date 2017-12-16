@@ -47,13 +47,11 @@ int main(void) {
       radio.stopListening();
       USART_send("Sending ");
       USART_sendNumber(cmd, 16);
-      USART_send("\r\n");
-      /*
+      // USART_send("\r\n");
       if (!radio.write( &cmd, sizeof(Command) ))
-        USART_send("... failed!\r\n");
+        USART_send(" ... failed!\r\n");
       else
-        USART_send("ok!\r\n");
-      */
+        USART_send(" ok!\r\n");
       cmd = 0;
     }
 
@@ -144,6 +142,13 @@ void processCommand(){
   if(strcmp(buffer, "i") == 0 || strcmp(buffer, "interactive") == 0){
     interactive = true;
     USART_send("Interactive mode enabled\r\n");
+  } else if(strncmp(buffer, "set", 3)){
+    // setter command
+    
+  } else if(strncmp(buffer, "get", 3)){
+    // getter command
+
+  
   } else {
     USART_send("Not supported\r\n");
   }
