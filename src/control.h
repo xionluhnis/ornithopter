@@ -51,7 +51,7 @@ struct Control {
   }
 
   bool input(unsigned char c, Command* output = 0){
-    Command cmd;
+    Command cmd = 0;
     switch(c){
       case 'a':
         if(slower())

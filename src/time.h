@@ -5,6 +5,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <stdint.h>
+#include <usart.h>
 
 // running at 20ms per interrupt on timer1
 // => no fractional part for microseconds
@@ -24,15 +25,15 @@ unsigned long seconds() {
   return o / 50UL;
 }
 
-unsigned long millis()
-{
+unsigned long millis() {
 	unsigned long o;
   uint16_t t;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
     o = timer1_overflow_count;
     t = TCNT1;
   }
-	return 20UL * o + t * 2UL / 5000UL;
+  unsigned long m = 20UL * o + t * 2UL / 5000UL;
+	return m;
 }
 
 unsigned long micros() {

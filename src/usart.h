@@ -70,7 +70,9 @@ void USART_sendNumber(Number num, unsigned char base){
 void USART_sendNumber(unsigned long num) {
     USART_sendNumber(num, 10);
 }
-
+void USART_sendNumber(uint16_t num){
+    USART_sendNumber(num, 10);
+}
 void USART_sendNumber(unsigned char num) {
     USART_sendNumber(num, 10);
 }

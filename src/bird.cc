@@ -21,6 +21,7 @@
 // our angles
 #define PWM_TOP (PWM_MID + (PWM_MAX - PWM_MID) * TOP_ANGLE / 90)
 #define PWM_BOT (PWM_MID - (PWM_MID - PWM_MIN) * BOT_ANGLE / 90)
+#define PWM_INV(a) (PWM_MIN + PWM_MAX - a)
 
 #ifndef WIRED
 
@@ -55,6 +56,7 @@ int main(void) {
   clock_init();
 #ifdef WIRED
   USART_init();
+  USART_send("Bird initializing.\r\n");
 #else
   radio_init();
 #endif
@@ -66,6 +68,7 @@ int main(void) {
 
   uint8_t counter = 0;
   unsigned long lastToggle = 0;
+  unsigned long lastSwitch = 0;
   enum {
     TOP,
     MIDDLE,
@@ -75,22 +78,43 @@ int main(void) {
   // switch => pullup
   PORTC |= (1 << PC3);
 
+  USART_send("\r\nDDRB=");
+  USART_sendNumber(DDRB, 2);
+  USART_send("\r\nDDRC=");
+  USART_sendNumber(DDRC, 2);
+  USART_send("\r\nDDRD=");
+  USART_sendNumber(DDRD, 2);
+  USART_send("\r\n\r\nPORTB=");
+  USART_sendNumber(PORTB, 2);
+  USART_send("\r\nPORTC=");
+  USART_sendNumber(PORTC, 2);
+  USART_send("\r\nPORTD=");
+  USART_sendNumber(PORTD, 2);
+  USART_send("\r\n");
+
   // LOOP
   while(1){
+    // USART_sendNumber(millis());
+    // USART_send("\r\n");
 
     // switches
     bool runSwitch = PINC & (1 << PC3);
     if(!runSwitch){
-      running = !running;
+      unsigned long now = seconds();
+      if(now != lastSwitch){
+        running = !running;
+        lastSwitch = now;
+      }
     }
 
     // update speed
     if(!running){
       OCR1A = PWM_MID;
+      OCR1B = PWM_MID;
     } else if(!controller.speed){
       // special case, we go at the top angle
       OCR1A = PWM_TOP;
-      OCR1B = PWM_TOP;
+      OCR1B = PWM_BOT;
     } else {
       unsigned long now = millis();
       // full speed (100) => 10Hz toggling up/down
@@ -114,13 +138,13 @@ int main(void) {
         }
         lastToggle = now;
       }
-      if(lastState == BOTTOM){
-        OCR1A = PWM_BOT;
-        OCR1B = PWM_BOT;
-      } else {
-        OCR1A = PWM_TOP;
-        OCR1B = PWM_TOP;
-      }
+      uint16_t pwm;
+      if(lastState == BOTTOM)
+        pwm = PWM_BOT;
+      else 
+        pwm = PWM_TOP;
+      OCR1A = pwm;
+      OCR1B = PWM_INV(pwm);
     }
 
     // update orientation
@@ -129,7 +153,15 @@ int main(void) {
 #ifdef WIRED
     if(USART_ready_to_read()){
       unsigned char c = USART_read();
-      controller.input(c);
+      USART_send("Input: ");
+      USART_send(c);
+      USART_send("\r\n");
+      Command cmd = 0;
+      if(controller.input(c, &cmd)){
+        USART_send("Command: ");
+        USART_sendNumber(cmd, 16);
+        USART_send("\r\n");
+      }
     }
 
 #else
