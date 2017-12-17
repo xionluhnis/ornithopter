@@ -15,12 +15,12 @@
 // 90deg  = 1ms   = 1250
 // 0deg   = 1.5ms = 1875
 // -90deg = 2ms   = 2500
-#define PWM_MAX 2500
-#define PWM_MID 1875
-#define PWM_MIN 1250
+#define PWM_MAX 2500UL
+#define PWM_MID 1875UL
+#define PWM_MIN 1250UL
 // our angles
-#define PWM_TOP (PWM_MID + (PWM_MAX - PWM_MID) * TOP_ANGLE / 90)
-#define PWM_BOT (PWM_MID - (PWM_MID - PWM_MIN) * BOT_ANGLE / 90)
+#define PWM_TOP (PWM_MID + (PWM_MAX - PWM_MID) * TOP_ANGLE / 90UL)
+#define PWM_BOT (PWM_MID - (PWM_MID - PWM_MIN) * BOT_ANGLE / 90UL)
 #define PWM_INV(a) (PWM_MIN + PWM_MAX - a)
 
 #ifndef WIRED
@@ -47,13 +47,21 @@ void toggle_led(){
   state = !state;
 }
 
+// global variables
 Control controller;
-uint8_t maxFrequency = 10;
+unsigned long maxFrequency = 10UL; // 10 toggles per second
 bool running = false;
+// counters / timers
+unsigned long counter = 0;
+
+bool checkRunSwitch();
+void updateWings();
+void updateTail();
+
 
 int main(void) {
 
-  clock_init();
+  clock_init(); // /1 prescaler
 #ifdef WIRED
   USART_init();
   USART_send("Bird initializing.\r\n");
@@ -65,15 +73,6 @@ int main(void) {
   pwm2_init();
   // and finally the time system
   time_init();
-
-  uint8_t counter = 0;
-  unsigned long lastToggle = 0;
-  unsigned long lastSwitch = 0;
-  enum {
-    TOP,
-    MIDDLE,
-    BOTTOM
-  } lastState = MIDDLE;
 
   // switch => pullup
   PORTC |= (1 << PC3);
@@ -98,57 +97,14 @@ int main(void) {
     // USART_send("\r\n");
 
     // switches
-    bool runSwitch = PINC & (1 << PC3);
-    if(!runSwitch){
-      unsigned long now = seconds();
-      if(now != lastSwitch){
-        running = !running;
-        lastSwitch = now;
-      }
-    }
+    if(checkRunSwitch())
+      running = !running;
 
     // update speed
-    if(!running){
-      OCR1A = PWM_MID;
-      OCR1B = PWM_MID;
-    } else if(!controller.speed){
-      // special case, we go at the top angle
-      OCR1A = PWM_TOP;
-      OCR1B = PWM_BOT;
-    } else {
-      unsigned long now = millis();
-      // full speed (100) => 10Hz toggling up/down
-      unsigned long diff = now - lastToggle;
-
-      //
-      // floating point version:
-      // float toggleMilliseconds = controller.speed * 10UL / maxFrequency;
-      // 
-      // better, only ints:
-      if(diff * maxFrequency > controller.speed * 10UL){
-        switch(lastState){
-          case TOP:
-            lastState = BOTTOM;
-            break;
-          case MIDDLE:
-          case BOTTOM:
-          default:
-            lastState = TOP;
-            break;
-        }
-        lastToggle = now;
-      }
-      uint16_t pwm;
-      if(lastState == BOTTOM)
-        pwm = PWM_BOT;
-      else 
-        pwm = PWM_TOP;
-      OCR1A = pwm;
-      OCR1B = PWM_INV(pwm);
-    }
+    updateWings();
 
     // update orientation
-    // TODO
+    updateTail();
 
 #ifdef WIRED
     if(USART_ready_to_read()){
@@ -217,6 +173,12 @@ int main(void) {
     toggle_led();
     ++counter;
 
+    if(counter % 10000 == 0){
+      USART_send("m=");
+      USART_sendNumber(millis());
+      USART_send("\r\n");
+    }
+
     // second led
     if(seconds() % 2)
       PORTD |= (1 << PD4);
@@ -225,4 +187,62 @@ int main(void) {
   }
   
   return 0;
+}
+
+
+bool checkRunSwitch(){
+  static unsigned long lastSwitch = 0;
+  bool trigger = false;
+  bool runSwitch = PINC & (1 << PC3); // is the switch being pressed?
+  if(!runSwitch){
+    unsigned long now = millis();
+    trigger = now > lastSwitch + 1000UL;
+    lastSwitch = now; // so we can press as long as we want (and only count after release)
+  }
+  return trigger;
+}
+
+void updateWings(){
+  static unsigned long lastToggle = 0;
+  static enum {
+    TOP,
+    MIDDLE,
+    BOTTOM
+  } wingState = MIDDLE;
+  // cases
+  if(!running){
+    // if not active, stay in mid position
+    wingState = MIDDLE;
+    OCR1A = PWM_MID;
+    OCR1B = PWM_MID;
+  } else if(!controller.speed){
+    // special case, we go at the top angle
+    wingState = TOP;
+    OCR1A = PWM_TOP;
+    OCR1B = PWM_BOT;
+  } else {
+    unsigned long now = millis();
+    // full speed (100) => 10Hz toggle cycle (1 up + 1 down)
+    unsigned long deltaThreshold = 1000UL * maxFrequency / ((unsigned long)controller.speed) / 2UL;
+    // Note: / 2 is because we need two toggles (1 up + 1 down)
+    if(now  >= lastToggle + deltaThreshold){
+      if(wingState == TOP)
+        wingState = BOTTOM;
+      else
+        wingState = TOP;
+      lastToggle = now;
+      // change PWM
+      if(wingState == BOTTOM) {
+        OCR1A = PWM_BOT;
+        OCR1B = PWM_TOP;
+      } else {
+        OCR1A = PWM_TOP;
+        OCR1B = PWM_BOT;
+      }
+    }
+  }
+}
+
+void updateTail(){
+  // TODO implement this!
 }

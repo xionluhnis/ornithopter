@@ -5,7 +5,7 @@ BAUDRATE?=9600
 CC=avr-c++
 DEFINE=-DF_CPU=$(F_CPU) -DBAUDRATE=$(BAUDRATE) -DORNITHOPTER
 INCLUDE=-I./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/ -I./libraries/RF24/
-CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -Os -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections -fshort-enums
+CFLAGS=-mmcu=$(MMCU) $(DEFINE) -Wall -O1 -std=c++11 -Wno-write-strings -fdata-sections -ffunction-sections -Wl,-gc-sections -fshort-enums
 LFLAGS=
 LFUSES=0x5E
 RADIO_CE?=PC0
