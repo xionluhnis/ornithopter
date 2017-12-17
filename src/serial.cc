@@ -7,6 +7,7 @@
 
 #define RADIO_NUM 0
 
+#include "command.h"
 #include "control.h"
 #include "radio.h"
 #include "time.h"
@@ -163,37 +164,13 @@ void processInput(){
   unsigned char c = USART_read();
   USART_sendNumber(c, 16);
   USART_send("\r\n");
+
+  // control commands
+  if(control_input(controller, c, &cmd)){
+    return;
+  }
+  // non-control inputs
   switch(c){
-
-    case 'a':
-      if(controller.slower())
-        cmd = make_command(SetSpeed, controller.speed);
-      break;
-
-    case 's':
-      if(controller.left())
-        cmd = make_command(SetDirection, controller.direction);
-      break;
-
-    case 'd':
-      if(controller.faster())
-        cmd = make_command(SetSpeed, controller.speed);
-      break;
-    
-    case 'f':
-      if(controller.right())
-        cmd = make_command(SetDirection, controller.direction);
-      break;
-
-    case ' ':
-      controller.stop();
-      cmd = make_command(Stop, 0xFE);
-      break;
-
-    case 'q':
-      controller.reset();
-      cmd = make_command(Stop, 0xFF);
-      break;
 
     case 0x0D: // delete, return
     case 0x7F:

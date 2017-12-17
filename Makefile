@@ -11,8 +11,18 @@ LFUSES=0x5E
 RADIO_CE?=PC0
 RADIO_CSN?=PC1
 
+ifeq($(WIRED),1)
+DEFINE+=-DWIRED
+else
+DEFINE+=-UWIRED
+endif
+
 SPI_CPP=./libraries/Arduino/hardware/arduino/avr/libraries/SPI/src/SPI.cpp
 RF24_CPP=./libraries/RF24/RF24.cpp
+
+
+build/bird.out: src/bird.cc
+	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) $(LFLAGS)
 
 build/car.out: src/car.cc
 	$(CC) $(CFLAGS) $(DEFINE) -DRADIO_CE=$(RADIO_CE) -DRADIO_CSN=$(RADIO_CSN) -I./ -I./src/ $(INCLUDE) -o $@ $< $(SPI_CPP) $(RF24_CPP) $(LFLAGS)
@@ -59,6 +69,9 @@ accelerometer: build/accelerometer.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
 
 radio: build/radio.hex fuses
+	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
+
+bird: build/bird.hex fuses
 	avrdude -p $(SMCU) -P usb -c usbtiny -U flash:w:$<
 
 car: build/car.hex fuses

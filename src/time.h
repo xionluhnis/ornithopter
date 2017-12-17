@@ -3,7 +3,6 @@
 
 #include <avr/io.h>
 
-#if 0
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -250,4 +249,3 @@ void time_init(){
 #endif
 }
 
-#endif
