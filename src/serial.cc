@@ -166,7 +166,7 @@ void processInput(){
   USART_send("\r\n");
 
   // control commands
-  if(control_input(controller, c, &cmd)){
+  if(controller.input(c, &cmd)){
     return;
   }
   // non-control inputs

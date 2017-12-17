@@ -11,7 +11,7 @@ LFUSES=0x5E
 RADIO_CE?=PC0
 RADIO_CSN?=PC1
 
-ifeq($(WIRED),1)
+ifeq ($(WIRED),1)
 DEFINE+=-DWIRED
 else
 DEFINE+=-UWIRED
@@ -39,7 +39,7 @@ build/%.out: test/%.cc
 
 build/%.hex: build/%.out
 	avr-objcopy -O ihex $< $@;\
-	avr-size --mcu=$(MMCU) --format=avr $@
+	avr-size --mcu=$(MMCU) --format=avr $<
 
 clean:
 	rm -rf build/*
