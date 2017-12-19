@@ -262,6 +262,22 @@ void radio_input(){
         controller.speed = data.u;
         break;
 
+      case Trigger:
+        // different types of triggers
+        switch(data.u){
+          case 0x00:
+            running = !running;
+            break;
+          
+          case 0x01:
+            // TODO trigger something on the bird
+            break;
+
+          default:
+            break;
+        }
+        break;
+
       default:
 #ifdef WIRED
         // this actualy never gets reached right now

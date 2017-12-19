@@ -109,6 +109,15 @@ struct Control {
         reset();
         cmd = make_command(Stop, 0xFF);
         break;
+
+        // trigger 0x00 => switch first button (running state)
+      case 't':
+        cmd = make_command(Trigger, 0x00);
+        break;
+        // trigger 0x01 => pull trigger action (e.g. pooping machine)
+      case 'T':
+        cmd = make_command(Trigger, 0x01);
+        break;
   
       default:
         return false;
