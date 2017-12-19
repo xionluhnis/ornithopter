@@ -23,6 +23,15 @@
 #define PWM_BOT (PWM_MID - (PWM_MID - PWM_MIN) * BOT_ANGLE / 90UL)
 #define PWM_INV(a) (PWM_MIN + PWM_MAX - a)
 
+// maximum allowed consecutive timeouts before going into landing
+#ifndef MAX_TIMEOUTS
+#define MAX_TIMEOUTS 5
+#endif
+// timeout in milliseconds
+#ifndef RADIO_TIMEOUT
+#define RADIO_TIMEOUT 1000
+#endif
+
 #ifndef WIRED
 
 // control from serial board
@@ -53,11 +62,12 @@ unsigned long maxFrequency = 10UL; // 10 toggles per second
 bool running = false;
 // counters / timers
 unsigned long counter = 0;
+uint8_t numTimeouts = 0;
 
-bool checkRunSwitch();
-void updateWings();
-void updateTail();
-
+bool check_run_switch();
+void update_wings();
+void update_tail();
+void radio_input();
 
 int main(void) {
 
@@ -77,6 +87,7 @@ int main(void) {
   // switch => pullup
   PORTC |= (1 << PC3);
 
+#ifdef WIRED
   USART_send("\r\nDDRB=");
   USART_sendNumber(DDRB, 2);
   USART_send("\r\nDDRC=");
@@ -90,6 +101,7 @@ int main(void) {
   USART_send("\r\nPORTD=");
   USART_sendNumber(PORTD, 2);
   USART_send("\r\n");
+#endif
 
   // LOOP
   while(1){
@@ -97,14 +109,14 @@ int main(void) {
     // USART_send("\r\n");
 
     // switches
-    if(checkRunSwitch())
+    if(check_run_switch())
       running = !running;
 
     // update speed
-    updateWings();
+    update_wings();
 
     // update orientation
-    updateTail();
+    update_tail();
 
 #ifdef WIRED
     if(USART_ready_to_read()){
@@ -121,63 +133,19 @@ int main(void) {
     }
 
 #else
-    // process input from user
-    bool timeout = false;
-    uint16_t count = 0;
-    while ( ! radio.available() ){
-      ++count;
-      if(count > 2000){
-        timeout = true;
-        break;
-      }
-    }
-    if ( timeout ){
-      USART_send("Response timed out.\r\n");
-    }else{
-      Command response = 0;
-      radio.read( &response, sizeof(Command) );
-
-      CommandType what = get_type(response);
-      union {
-        uint8_t u;
-        int8_t  s;
-      } data;
-      data.u = get_data(response);
-      switch(what){
-
-        case Stop:
-          if(data.u == 0xFE)
-            controller.reset();
-          else
-            controller.stop();
-          break;
-
-        case SetDirection:
-          controller.direction = data.s;
-          break;
-
-        case SetSpeed:
-          controller.speed = data.u;
-          break;
-
-        default:
-          USART_send("Unsupported command: ");
-          USART_sendNumber(static_cast<uint8_t>(what), 16);
-          USART_send("\r\n");
-          break;
-      }
-    }
-
+    radio_input();
 #endif
 
     toggle_led();
     ++counter;
 
+#ifdef WIRED
     if(counter % 10000 == 0){
       USART_send("m=");
       USART_sendNumber(millis());
       USART_send("\r\n");
     }
+#endif
 
     // second led
     if(seconds() % 2)
@@ -190,7 +158,7 @@ int main(void) {
 }
 
 
-bool checkRunSwitch(){
+bool check_run_switch(){
   static unsigned long lastSwitch = 0;
   bool trigger = false;
   bool runSwitch = PINC & (1 << PC3); // is the switch being pressed?
@@ -202,7 +170,7 @@ bool checkRunSwitch(){
   return trigger;
 }
 
-void updateWings(){
+void update_wings(){
   static unsigned long lastToggle = 0;
   static enum {
     TOP,
@@ -210,7 +178,7 @@ void updateWings(){
     BOTTOM
   } wingState = MIDDLE;
   // cases
-  if(!running){
+  if(!running || numTimeouts > MAX_TIMEOUTS){
     // if not active, stay in mid position
     wingState = MIDDLE;
     OCR1A = PWM_MID;
@@ -243,6 +211,66 @@ void updateWings(){
   }
 }
 
-void updateTail(){
+void update_tail(){
   // TODO implement this!
+}
+
+void radio_input(){
+  // process input from user
+  bool timeout = false;
+  unsigned long ms = millis();
+  while ( ! radio.available() ){
+    if(millis() > ms + RADIO_TIMEOUT){
+      timeout = true;
+      break;
+    }
+  }
+  if ( timeout ){
+    // If it times out too many times, we stop the bird by precaution
+    
+    // Note: do not let count overflow (else the bird may be in an odd state)
+    if(numTimeouts < 255)
+      ++numTimeouts;
+  }else{
+    // reset timeout counter
+    numTimeouts = 0;
+
+    // get radio command
+    Command response = 0;
+    radio.read( &response, sizeof(Command) );
+
+    CommandType what = get_type(response);
+    union {
+      uint8_t u;
+      int8_t  s;
+    } data;
+    data.u = get_data(response);
+    switch(what){
+
+      case Stop:
+        if(data.u == 0xFE)
+          controller.reset();
+        else
+          controller.stop();
+        break;
+
+      case SetDirection:
+        controller.direction = data.s;
+        break;
+
+      case SetSpeed:
+        controller.speed = data.u;
+        break;
+
+      default:
+#ifdef WIRED
+        // this actualy never gets reached right now
+        USART_send("Unsupported command: ");
+        USART_sendNumber(static_cast<uint8_t>(what), 16);
+        USART_send("\r\n");
+#endif
+        break;
+    }
+  }
+
 }
