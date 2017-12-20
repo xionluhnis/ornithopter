@@ -25,11 +25,15 @@
 
 // maximum allowed consecutive timeouts before going into landing
 #ifndef MAX_TIMEOUTS
-#define MAX_TIMEOUTS 5
+#define MAX_TIMEOUTS -1
 #endif
 // timeout in milliseconds
 #ifndef RADIO_TIMEOUT
-#define RADIO_TIMEOUT 1000
+#define RADIO_TIMEOUT 100
+#endif
+// radio poll every so often (milliseconds)
+#ifndef RADIO_POLLING_PERIOD
+#define RADIO_POLLING_PERIOD 1000 
 #endif
 
 #ifndef WIRED
@@ -86,6 +90,7 @@ int main(void) {
 
   // switch => pullup
   PORTC |= (1 << PC3);
+  DDRD |= (1 << PD7); // trigger signal
 
 #ifdef WIRED
   USART_send("\r\nDDRB=");
@@ -178,7 +183,7 @@ void update_wings(){
     BOTTOM
   } wingState = MIDDLE;
   // cases
-  if(!running || numTimeouts > MAX_TIMEOUTS){
+  if(!running || (MAX_TIMEOUTS >= 0 && numTimeouts > MAX_TIMEOUTS)){
     // if not active, stay in mid position
     wingState = MIDDLE;
     OCR1A = PWM_MID;
@@ -216,18 +221,30 @@ void update_tail(){
 }
 
 void radio_input(){
+  static unsigned long lastRadio = 0;
+  unsigned long now = millis();
+
+  // only poll every so often
+  // TODO the polling should depend on speed
+  // TODO communication should be done with interrupts, not
+  if(now < lastRadio + RADIO_POLLING_PERIOD)
+    return;
+  else
+    lastRadio = now;
+
   // process input from user
   bool timeout = false;
-  unsigned long ms = millis();
   while ( ! radio.available() ){
-    if(millis() > ms + RADIO_TIMEOUT){
+    if(millis() > now + RADIO_TIMEOUT){
       timeout = true;
       break;
     }
   }
   if ( timeout ){
+#if MAX_TIMEOUTS == -1
+    return; // we just skip this time
+#endif
     // If it times out too many times, we stop the bird by precaution
-    
     // Note: do not let count overflow (else the bird may be in an odd state)
     if(numTimeouts < 255)
       ++numTimeouts;
@@ -269,9 +286,14 @@ void radio_input(){
             running = !running;
             break;
           
-          case 0x01:
-            // TODO trigger something on the bird
-            break;
+          case 0x01: {
+              static bool triggered = false;
+              triggered = !triggered;
+              if(triggered)
+                PORTD |= (1 << PD7);
+              else
+                PORTD &= ~(1 << PD7);
+            } break;
 
           default:
             break;
